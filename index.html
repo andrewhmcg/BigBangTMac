@@ -126,7 +126,7 @@ const REFS = {
 const ACCESSED = "8 November 2026";
 
 const ERAS = [
-{ name:"The Beginning", when:"0 seconds · 13.8 billion years ago",
+{ name:"The Beginning", when:"0 seconds · 13.8 billion years ago", twist:"Your first trip. Learn to steer and dodge the time glitches.",
   intro:"Everything you can see, every star, planet and person, was once packed into a tiny, super-hot, super-dense state. Then space started to stretch.",
   facts:[
    {title:"Not an explosion", text:"The Big Bang was not a bomb going off in empty space. It was space itself starting to stretch, and it happened everywhere at once.",
@@ -139,7 +139,7 @@ const ERAS = [
   quiz:{q:"What was the Big Bang?", options:["A huge bomb exploding in empty space","Space itself starting to expand from a hot, dense state","The moment the Sun was born"], answer:1,
     explain:"Right! The Big Bang was space itself starting to stretch from a very hot, dense state."}
 },
-{ name:"Inflation", when:"10⁻³⁶ to 10⁻³² seconds after the Big Bang",
+{ name:"Inflation", when:"10⁻³⁶ to 10⁻³² seconds after the Big Bang", twist:"Space is stretching so fast it pushes your pod outward. Fight the push!",
   intro:"Hold on tight. In a tiny fraction of a second, the universe is about to grow faster than at any time since.",
   facts:[
    {title:"The biggest growth spurt", text:"During inflation the universe grew from smaller than an atom to roughly the size of a grapefruit, in a tiny fraction of a second.",
@@ -152,7 +152,7 @@ const ERAS = [
   quiz:{q:"What was inflation?", options:["A slow cooling that took billions of years","A super-fast stretch of the universe in a split second","The moment the first stars switched on"], answer:1,
     explain:"Correct! Inflation was a super-fast stretch of the universe in the first split second."}
 },
-{ name:"The Afterglow", when:"380,000 years after the Big Bang",
+{ name:"The Afterglow", when:"380,000 years after the Big Bang", twist:"Thick glowing fog means you can only see close by. Each orb you find clears the fog a little.",
   intro:"The universe is a hot, glowing fog. Light can't get far before it bumps into something. Watch the fog clear as you explore.",
   facts:[
    {title:"A glowing fog", text:"For its first 380,000 years the universe was so hot that atoms couldn't hold together. Light kept bouncing off loose particles, so it couldn't travel far.",
@@ -166,7 +166,7 @@ const ERAS = [
   quiz:{q:"Why is the CMB evidence for the Big Bang?", options:["It is sunlight bouncing off the Moon","It is leftover light from when the young universe was hot and dense","It is radio signals from other planets"], answer:1,
     explain:"Yes! The CMB is leftover light from the hot, dense early universe, just as the Big Bang theory predicted."}
 },
-{ name:"Dark Ages & First Stars", when:"380,000 to about 250 million years",
+{ name:"Dark Ages & First Stars", when:"380,000 to about 250 million years", twist:"Swirling gas clouds have gravity. Get too close and they pull you in!",
   intro:"The glow has faded and there are no stars yet. The universe is dark. Collect the orbs to help gravity switch the first stars on.",
   facts:[
    {title:"The cosmic dark ages", text:"After the afterglow faded, there were no stars to make new light. The universe stayed dark for millions of years.",
@@ -179,7 +179,7 @@ const ERAS = [
   quiz:{q:"What ended the cosmic dark ages?", options:["The first stars switching on","The cosmic microwave background","The Big Freeze"], answer:0,
     explain:"Spot on! The first stars lit up the universe and ended the dark ages."}
 },
-{ name:"Galaxies", when:"A few hundred million years onwards",
+{ name:"Galaxies", when:"A few hundred million years onwards", twist:"The orbs are orbiting, just like stars in a galaxy. Time your catch.",
   intro:"Stars are gathering into enormous spinning cities of light. Fly between the galaxies to find out how they formed.",
   facts:[
    {title:"Star cities", text:"Gravity pulled stars, gas and dust together into huge groups called galaxies. The James Webb Space Telescope can see galaxies from more than 13.5 billion years ago.",
@@ -192,12 +192,12 @@ const ERAS = [
   quiz:{q:"What holds a galaxy together?", options:["Magnetism","Gravity","The cosmic microwave background"], answer:1,
     explain:"Correct! Gravity holds the stars, gas and dust of a galaxy together."}
 },
-{ name:"Expansion", when:"Today · 13.8 billion years after the Big Bang",
+{ name:"Expansion", when:"Today · 13.8 billion years after the Big Bang", twist:"Space is expanding, so the orbs drift away from the centre and from each other.",
   intro:"Welcome to the present day. The universe is still stretching. Look closely at the galaxies: the further away they are, the redder they look.",
   facts:[
    {title:"Still stretching", text:"The universe is still expanding. Galaxies are getting further apart because the space between them is stretching.",
     analogy:"Think of raisins in bread dough that is rising in the oven. As the dough grows, every raisin moves away from every other raisin.", ref:"jpl"},
-   {title:"Redshift", evidence:true, text:"As light travels through stretching space, its waves get stretched too. Longer waves look redder, so this is called redshift. Light from distant galaxies is redshifted, which shows they are moving away from us as the universe expands.",
+   {title:"Redshift", evidence:true, wave:true, text:"As light travels through stretching space, its waves get stretched too. Longer waves look redder, so this is called redshift. Light from distant galaxies is redshifted, which shows they are moving away from us as the universe expands.",
     term:["Wavelength","the distance from the top of one wave to the top of the next. Red light has a longer wavelength than blue light."],
     analogy:"Draw a wavy line on a balloon, then blow it up. The waves get longer as the balloon stretches.", ref:"wmapTests"},
    {title:"Hubble's discovery", text:"In 1929 Edwin Hubble found that the further away a galaxy is, the faster it moves away from us. Run the expansion backwards and everything was once squeezed together: the Big Bang. In 1998 scientists also found that the expansion is speeding up.",
@@ -206,7 +206,7 @@ const ERAS = [
   quiz:{q:"What does redshift tell us about distant galaxies?", options:["They are very hot","They are moving away from us as space expands","They are made of red rock"], answer:1,
     explain:"Exactly! Redshift shows distant galaxies are moving away from us because space is expanding."}
 },
-{ name:"The Big Freeze", when:"Trillions of years in the future",
+{ name:"The Big Freeze", when:"Trillions of years in the future", twist:"It is so cold that your engines are sluggish. Plan your route.",
   intro:"You've reached the far future. Don't worry, this is trillions of years away! Explore to see how the universe will probably end.",
   facts:[
    {title:"Expanding forever", text:"Measurements suggest the universe will keep expanding forever. Scientists call this ending the Big Freeze, or heat death.",
@@ -326,6 +326,10 @@ function startEra(i){
   for(let h=0;h<n;h++){const p=placeAway([...S.orbs,...S.hazards],U()*.18);
     const sp=rnd(40,70)+i*6, a=rnd(0,Math.PI*2);
     S.hazards.push({x:p.x,y:p.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,rot:0});}
+  S.wells=[];
+  if(i===3){for(let w=0;w<2;w++){const p=placeAway([...S.orbs,...S.wells],U()*.3);S.wells.push({x:p.x,y:p.y});}}
+  if(i===4){for(const o of S.orbs){o.or=U()*rnd(.08,.13);o.oa=rnd(0,7);o.os=rnd(.5,.9)*(Math.random()<.5?-1:1);
+    o.cx=Math.max(o.or+20,Math.min(W-o.or-20,o.x));o.cy=Math.max(o.or+30,Math.min(H-o.or-40,o.y));}}
   setupBg(i);
   S.mode='intro'; updateHud(); showIntro();
 }
@@ -435,6 +439,21 @@ function drawHazard(h){
   for(let k=0;k<16;k++){const r=k%2?7:16, a=k*Math.PI/8;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();ctx.fill();ctx.stroke();
   ctx.fillStyle='#2a0612';ctx.beginPath();ctx.arc(0,0,3.5,0,7);ctx.fill();ctx.restore();
 }
+function drawWell(w){
+  const R=U()*.32;ctx.save();ctx.translate(w.x,w.y);
+  const g=ctx.createRadialGradient(0,0,0,0,0,R);g.addColorStop(0,'rgba(170,120,255,.45)');g.addColorStop(.5,'rgba(120,80,220,.15)');g.addColorStop(1,'rgba(120,80,220,0)');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,R,0,7);ctx.fill();
+  ctx.rotate(-S.t*.8);ctx.strokeStyle='rgba(200,170,255,.5)';ctx.lineWidth=2;
+  for(let a=0;a<3;a++){ctx.beginPath();for(let k=0;k<40;k++){const f=k/40,r=R*(1-f)*.9,an=a*2.09+f*5;k?ctx.lineTo(Math.cos(an)*r,Math.sin(an)*r):ctx.moveTo(Math.cos(an)*r,Math.sin(an)*r);}ctx.stroke();}
+  ctx.restore();
+  ctx.font='800 11px Nunito, sans-serif';ctx.fillStyle='rgba(220,200,255,.9)';ctx.textAlign='center';ctx.fillText('GAS CLOUD',w.x,w.y+4);}
+function drawFog(){
+  const s=S.ship, r=U()*(.2+progress()*.5);
+  const g=ctx.createRadialGradient(s.x,s.y,r*.5,s.x,s.y,r);g.addColorStop(0,'rgba(66,24,12,0)');g.addColorStop(1,'rgba(66,24,12,.95)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
+function drawFrost(){
+  const g=ctx.createRadialGradient(W/2,H/2,U()*.35,W/2,H/2,Math.hypot(W,H)/2);g.addColorStop(0,'rgba(180,220,255,0)');g.addColorStop(1,'rgba(180,220,255,.28)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
 function drawGate(g){
   const r=34+Math.sin(S.t*4)*3;
   ctx.save();ctx.translate(g.x,g.y);
@@ -458,9 +477,12 @@ function frame(now){
   if(S.shake>0&&!reduced){S.shake-=dt;ctx.translate(rnd(-5,5),rnd(-5,5));}
   drawBg(dt);
   if(!['title','end','warp','order'].includes(S.mode)){
-    if(S.gate) drawGate(S.gate);
+    if(S.era===3) S.wells.forEach(drawWell);
     S.orbs.forEach(o=>{if(!o.taken) drawOrb(o);});
+    if(S.era===2) drawFog();
     S.hazards.forEach(drawHazard);
+    if(S.era===6) drawFrost();
+    if(S.gate) drawGate(S.gate);
     drawShip();
     drawFx();
   }
@@ -469,21 +491,28 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 function update(dt){
-  const s=S.ship, maxV=180+U()*.35;
+  const s=S.ship, E=S.era; let maxV=180+U()*.35, acc=6;
+  if(E===6){maxV*=.6;acc=2.2;}
   let dx=0,dy=0; const K=S.keys;
   if(K.ArrowLeft||K.a) dx-=1; if(K.ArrowRight||K.d) dx+=1; if(K.ArrowUp||K.w) dy-=1; if(K.ArrowDown||K.s) dy+=1;
   let tvx=0,tvy=0;
   if(dx||dy){const m=Math.hypot(dx,dy);tvx=dx/m*maxV;tvy=dy/m*maxV;}
   else if(S.pointer){const px=S.pointer.x-s.x, py=S.pointer.y-s.y, d=Math.hypot(px,py);
     if(d>4){const sp=Math.min(maxV,d*4);tvx=px/d*sp;tvy=py/d*sp;}}
-  const k=Math.min(1,dt*6); s.vx+=(tvx-s.vx)*k; s.vy+=(tvy-s.vy)*k;
+  const k=Math.min(1,dt*acc); s.vx+=(tvx-s.vx)*k; s.vy+=(tvy-s.vy)*k;
+  if(E===1){const ex=s.x-W/2,ey=s.y-H/2,ed=Math.hypot(ex,ey)||1;s.x+=ex/ed*75*dt;s.y+=ey/ed*75*dt;}
+  if(E===3){for(const w of S.wells){const wx=w.x-s.x,wy=w.y-s.y,wd=Math.hypot(wx,wy)||1,WR=U()*.32;
+    if(wd<WR){const f=150*(1-wd/WR)+20;s.x+=wx/wd*f*dt;s.y+=wy/wd*f*dt;}}}
   s.x=Math.max(16,Math.min(W-16,s.x+s.vx*dt)); s.y=Math.max(20,Math.min(H-20,s.y+s.vy*dt));
   if(Math.hypot(s.vx,s.vy)>20) s.a=Math.atan2(s.vy,s.vx);
   if(s.inv>0) s.inv-=dt;
   S.trail.push({x:s.x,y:s.y,l:1}); S.trail.forEach(p=>p.l-=dt*2.5); S.trail=S.trail.filter(p=>p.l>0).slice(-30);
 
   for(const o of S.orbs){ if(o.taken) continue;
-    o.x+=o.vx*dt;o.y+=o.vy*dt; if(o.x<30||o.x>W-30)o.vx*=-1; if(o.y<30||o.y>H-40)o.vy*=-1;
+    if(E===4){o.oa+=o.os*dt;o.x=o.cx+Math.cos(o.oa)*o.or;o.y=o.cy+Math.sin(o.oa)*o.or*.7;}
+    else if(E===5){o.x+=(o.x-W/2)*.16*dt+o.vx*dt*.3;o.y+=(o.y-H/2)*.16*dt+o.vy*dt*.3;
+      if(o.x<20||o.x>W-20||o.y<20||o.y>H-30){o.x=W/2+rnd(-40,40);o.y=H/2+rnd(-40,40);}}
+    else{o.x+=o.vx*dt;o.y+=o.vy*dt; if(o.x<30||o.x>W-30)o.vx*=-1; if(o.y<30||o.y>H-40)o.vy*=-1;}
     if(Math.hypot(o.x-s.x,o.y-s.y)<30){
       o.taken=true; S.mode='collect'; S.pend=reduced?.1:.5; S.pendOrb=o; S.pointer=null;
       const c=o.ev?'94,230,255':'255,201,74'; burst(o.x,o.y,c,o.ev?44:26); pop(o.x,o.y-26,o.ev?'+200':'+100',c);
@@ -535,6 +564,7 @@ function showTitle(){
 function showIntro(){
   const e=ERAS[S.era];
   show(`<p class="eyebrow">Era ${S.era+1} of 7</p><h2>${e.name}</h2><p class="whenline">${e.when}</p><p class="big">${e.intro}</p>
+   <div class="term"><b>Era twist:</b> ${e.twist}</div>
    <div class="row"><button class="go" id="bGo">Explore</button></div>`);
   on('bGo',()=>{hide();S.mode='play';hint.hidden=false;setHintText();});
 }
@@ -546,13 +576,25 @@ function collect(o){
   show(`<p class="eyebrow">${o.ev?'Evidence for the Big Bang found!':`Fact ${n} of 3`} · ${e.name}</p>
    <h2>${f.title}</h2><p class="big">${f.text}</p>
    ${f.term?`<div class="term"><b>${f.term[0]}:</b> ${f.term[1]}</div>`:''}
+   ${f.wave?`<div class="term"><b>Watch:</b> a light wave travelling through expanding space<canvas id="wave" style="display:block;width:100%;height:90px;margin-top:6px"></canvas></div>`:''}
    ${f.analogy?`<div class="analogy"><span>Think of it like this</span>${f.analogy}</div>`:''}
    <p class="src">Source: (${r.cite})</p>
    <div class="row"><button class="go" id="bOk">Keep exploring</button></div>`, o.ev?'evidence':'fact');
+  if(f.wave) animateWave();
   on('bOk',()=>{hide();
     if(S.orbs.every(x=>x.taken)){const p=placeAway(S.hazards,U()*.15);S.gate={x:p.x,y:Math.min(p.y,H*.6)};}
     S.mode='play';hint.hidden=false;setHintText();});
 }
+function animateWave(){
+  const c=document.getElementById('wave');if(!c)return;const w=c.clientWidth||300,h=90;
+  c.width=w*DPR;c.height=h*DPR;const x=c.getContext('2d');x.setTransform(DPR,0,0,DPR,0,0);const t0=performance.now();
+  (function tick(now){ if(!c.isConnected)return;
+    const k=reduced?1:((now-t0)/5000)%1, lam=26*(1+k*1.6), hue=Math.max(0,235-k*235*1.1);
+    x.clearRect(0,0,w,h);x.strokeStyle=`hsl(${hue},95%,62%)`;x.lineWidth=3;x.beginPath();
+    for(let px=0;px<=w;px+=2){const y=h/2+8+Math.sin(px/lam*Math.PI*2)*h*.28;px?x.lineTo(px,y):x.moveTo(px,y);}x.stroke();
+    x.fillStyle='#b3acd8';x.font='700 12px Nunito, sans-serif';x.textAlign='left';
+    x.fillText(k<.3?'Short wavelength: looks blue':k<.7?'Space stretches the wave...':'Long wavelength: looks red',4,12);
+    if(!reduced) requestAnimationFrame(tick);})(t0);}
 function showQuiz(){
   const q=ERAS[S.era].quiz;
   show(`<p class="eyebrow">Time gate check · answer to travel on</p><h2>${q.q}</h2>
