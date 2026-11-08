@@ -250,7 +250,25 @@ S.fx=[];S.pops=[];
 let AC=null, muted=false;
 try{muted=localStorage.getItem('bbtm-muted')==='1';}catch(e){}
 function audio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}}
-  if(AC.state==='suspended')AC.resume();return AC;}
+  if(AC.state!=='running'){try{AC.resume();}catch(e){}}return AC;}
+/* Phones (especially iPhones) only allow sound that is started during a tap, and iPhones
+   mute web audio when the silent switch is on. Unlocking on every tap fixes both. */
+let silentEl=null;
+function silentWav(){const n=4000,buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
+  const w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));};
+  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,8000,true);v.setUint32(28,16000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+  let str='';const b=new Uint8Array(buf);for(let i=0;i<b.length;i++)str+=String.fromCharCode(b[i]);return 'data:audio/wav;base64,'+btoa(str);}
+function unlockAudio(){
+  if(muted)return;
+  try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}
+  const a=audio();if(!a)return;
+  try{const b=a.createBuffer(1,1,22050),src=a.createBufferSource();src.buffer=b;src.connect(a.destination);src.start(0);}catch(e){}
+  try{if(!silentEl){silentEl=new Audio(silentWav());silentEl.loop=true;silentEl.setAttribute('playsinline','');}
+    if(silentEl.paused){const pr=silentEl.play();if(pr&&pr.catch)pr.catch(()=>{});}}catch(e){}
+}
+['pointerdown','touchend','click','keydown'].forEach(t=>document.addEventListener(t,unlockAudio,{capture:true,passive:true}));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&AC&&AC.state!=='running'){try{AC.resume();}catch(e){}}});
 function tone(freq,dur,type='sine',vol=.12,slide=0,delay=0){
   if(muted)return;const a=audio();if(!a)return;const t=a.currentTime+delay;
   const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.setValueAtTime(freq,t);
@@ -267,7 +285,8 @@ const SFX={
   warp:()=>{tone(110,1.6,'sawtooth',.05,1200);tone(220,1.6,'sine',.08,1600);},
   win:()=>[523,659,784,1046,1318].forEach((f,i)=>tone(f,.3,'triangle',.1,0,i*.12))
 };
-function toggleMute(){muted=!muted;try{localStorage.setItem('bbtm-muted',muted?'1':'0');}catch(e){}if(!muted)SFX.collect();}
+function toggleMute(){muted=!muted;try{localStorage.setItem('bbtm-muted',muted?'1':'0');}catch(e){}
+  if(muted){if(silentEl)silentEl.pause();}else{unlockAudio();SFX.collect();}}
 const sndLabel=()=>muted?'Sound: off':'Sound: on';
 
 /* ---------------- Effects ---------------- */
@@ -557,7 +576,7 @@ function showTitle(){
    </ul>
    ${bestScore()?`<p class="src">Best score on this device: ${bestScore()}</p>`:''}
    <div class="row"><button class="go" id="bStart">Start the journey</button><button id="bGloss">Glossary</button><button id="bSrc">Sources</button><button id="bSnd">${sndLabel()}</button></div>`);
-  on('bStart',()=>{audio();S.score=0;S.evidence=new Set();hide();startEra(0);});
+  on('bStart',()=>{unlockAudio();SFX.gate();S.score=0;S.evidence=new Set();hide();startEra(0);});
   on('bGloss',()=>showGlossary(showTitle)); on('bSrc',()=>showSources(showTitle));
   on('bSnd',()=>{toggleMute();document.getElementById('bSnd').textContent=sndLabel();});
 }
