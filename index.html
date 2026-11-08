@@ -1,0 +1,538 @@
+<title>Big Bang Time Machine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: one full-screen game. HUD strip on top, canvas fills the rest, panels float over the canvas.
+   Single dark "deep space" look on purpose, so it reads the same on any host theme. */
+:root{
+  --void:#0b0a1f;
+  --panel:#16143a;
+  --line:#322d6e;
+  --ink:#f3efff;
+  --muted:#b3acd8;
+  --star:#ffc94a;
+  --evidence:#5ee6ff;
+  --danger:#ff6b86;
+  --good:#7ef0a6;
+  --f-display:"Bungee","Arial Black",Impact,sans-serif;
+  --f-body:"Nunito","Trebuchet MS",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--void);color:var(--ink);font-family:var(--f-body);font-size:16px;overflow:hidden;
+  -webkit-tap-highlight-color:transparent}
+#app{height:100%;display:flex;flex-direction:column}
+#hud{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  background:var(--panel);border-bottom:1px solid var(--line)}
+#hud .era{font-family:var(--f-display);font-size:14px;letter-spacing:.04em;color:var(--star);min-width:0}
+#hud .when{font-size:12px;color:var(--muted)}
+#hud .grow{flex:1;min-width:0}
+#dots{display:flex;gap:6px}
+#dots i{width:10px;height:10px;border-radius:50%;background:var(--line);display:block}
+#dots i.done{background:var(--muted)}
+#dots i.now{background:var(--star);box-shadow:0 0 8px var(--star)}
+#score{font-family:var(--f-display);font-size:14px;font-variant-numeric:tabular-nums;color:var(--ink)}
+#stage{position:relative;flex:1;min-height:0}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#hint{position:absolute;left:50%;bottom:max(14px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:rgba(11,10,31,.75);border:1px solid var(--line);border-radius:999px;padding:6px 14px;
+  font-size:14px;font-weight:700;white-space:nowrap;pointer-events:none}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(6,5,20,.62);
+  padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  overflow-y:auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;
+  width:100%;max-width:560px;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:12px;
+  box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.panel.fact{border-color:var(--star)}
+.panel.evidence{border-color:var(--evidence);box-shadow:0 0 0 3px rgba(94,230,255,.15),0 20px 60px rgba(0,0,0,.5)}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0}
+.panel.evidence .eyebrow{color:var(--evidence)}
+h1,h2{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance;line-height:1.1}
+h1{font-size:clamp(30px,8vw,52px);color:var(--star)}
+h2{font-size:clamp(20px,5vw,28px)}
+p{margin:0;line-height:1.5}
+.big{font-size:17px}
+.whenline{font-weight:800;color:var(--star)}
+.term{background:rgba(255,255,255,.05);border-radius:10px;padding:10px 12px;line-height:1.45}
+.term b{color:var(--evidence)}
+.analogy{border-left:3px solid var(--star);padding:2px 0 2px 12px;line-height:1.45}
+.analogy span{display:block;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--star)}
+.src{font-size:13px;color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+button{font:inherit;font-weight:800;font-size:16px;border-radius:12px;border:2px solid var(--line);
+  background:transparent;color:var(--ink);padding:12px 18px;cursor:pointer}
+button.go{background:var(--star);border-color:var(--star);color:#1a1300}
+button:hover{border-color:var(--muted)}
+button.go:hover{filter:brightness(1.08)}
+button:focus-visible{outline:3px solid var(--evidence);outline-offset:2px}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opts button{text-align:left;font-weight:700}
+.opts button.right{border-color:var(--good);background:rgba(126,240,166,.15)}
+.opts button.wrong{border-color:var(--danger);background:rgba(255,107,134,.12);opacity:.8}
+.fb{font-weight:700;min-height:1.5em}
+.fb.ok{color:var(--good)} .fb.no{color:var(--danger)}
+ul.list{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;line-height:1.45}
+ol.refs{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:10px;line-height:1.45;font-size:15px}
+ol.refs a{color:var(--evidence);word-break:break-all}
+.badges{display:flex;gap:8px;flex-wrap:wrap}
+.badge{border:2px solid var(--evidence);color:var(--evidence);border-radius:999px;padding:6px 12px;font-weight:800;font-size:14px}
+.badge.miss{border-color:var(--line);color:var(--muted)}
+.keys{font-size:14px;color:var(--muted)}
+@media (max-width:520px){#hud .when{display:none}.panel{padding:18px}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+
+<div id="app">
+  <div id="hud">
+    <div class="grow">
+      <div class="era" id="hudEra">Big Bang Time Machine</div>
+      <div class="when" id="hudWhen">13.8 billion years of history</div>
+    </div>
+    <div id="dots" aria-hidden="true"></div>
+    <div id="score">0</div>
+  </div>
+  <div id="stage">
+    <canvas id="cv" aria-label="Game area: fly your time pod to collect glowing orbs"></canvas>
+    <div id="hint" hidden></div>
+    <div id="overlay"></div>
+  </div>
+</div>
+
+<script>
+/* ---------------- Content ---------------- */
+const REFS = {
+  wmapTests:{cite:"NASA, n.d.a", text:"NASA (n.d.a) <i>Tests of Big Bang cosmology</i>. Wilkinson Microwave Anisotropy Probe. Available at: ", url:"https://wmap.gsfc.nasa.gov/universe/bb_tests.html"},
+  wmapFate:{cite:"NASA, n.d.b", text:"NASA (n.d.b) <i>What is the ultimate fate of the universe?</i> Wilkinson Microwave Anisotropy Probe. Available at: ", url:"https://wmap.gsfc.nasa.gov/universe/uni_fate.html"},
+  wmapUni:{cite:"NASA, n.d.c", text:"NASA (n.d.c) <i>Cosmology: the study of the universe</i>. Wilkinson Microwave Anisotropy Probe. Available at: ", url:"https://map.gsfc.nasa.gov/universe/universe.html"},
+  wmapFaq:{cite:"NASA, n.d.d", text:"NASA (n.d.d) <i>Frequently asked questions</i>. Wilkinson Microwave Anisotropy Probe. Available at: ", url:"https://wmap.gsfc.nasa.gov/site/faq.html"},
+  jpl:{cite:"NASA JPL, n.d.", text:"NASA Jet Propulsion Laboratory (n.d.) <i>The Big Bang and expansion of the universe</i>. Available at: ", url:"https://www.jpl.nasa.gov/infographics/the-big-bang-and-expansion-of-the-universe"},
+  webb:{cite:"ESA/Webb, n.d.", text:"ESA/Webb (n.d.) <i>The early Universe</i>. European Space Agency. Available at: ", url:"https://esawebb.org/about/science/the-early-universe/"},
+  ucl:{cite:"UCL, 2021", text:"University College London (2021) <i>Cosmic dawn occurred 250 to 350 million years after Big Bang</i>. UCL News, June. Available at: ", url:"https://www.ucl.ac.uk/news/2021/jun/cosmic-dawn-occurred-250-350-million-years-after-big-bang"}
+};
+const ACCESSED = "8 November 2026";
+
+const ERAS = [
+{ name:"The Beginning", when:"0 seconds · 13.8 billion years ago",
+  intro:"Everything you can see, every star, planet and person, was once packed into a tiny, super-hot, super-dense state. Then space started to stretch.",
+  facts:[
+   {title:"Not an explosion", text:"The Big Bang was not a bomb going off in empty space. It was space itself starting to stretch, and it happened everywhere at once.",
+    term:["Big Bang theory","the scientific idea that the universe began very hot and dense and has been expanding ever since."], ref:"wmapFaq"},
+   {title:"13.8 billion years old", text:"Scientists have measured the age of the universe: about 13.8 billion years.",
+    analogy:"Squeeze the whole history of the universe into one calendar year. The Big Bang is midnight on 1 January, and all of human history fits into the last few seconds of 31 December.", ref:"wmapUni"},
+   {title:"The first elements", evidence:true, text:"In the first few minutes the universe was like a giant nuclear oven. It cooked up the lightest elements, hydrogen and helium. Scientists measure how much of them is in space today, and it matches what the Big Bang theory predicts.",
+    term:["Element","a pure substance made of only one kind of atom, like hydrogen, helium, carbon or iron."], ref:"wmapTests"}
+  ],
+  quiz:{q:"What was the Big Bang?", options:["A huge bomb exploding in empty space","Space itself starting to expand from a hot, dense state","The moment the Sun was born"], answer:1,
+    explain:"Right! The Big Bang was space itself starting to stretch from a very hot, dense state."}
+},
+{ name:"Inflation", when:"10⁻³⁶ to 10⁻³² seconds after the Big Bang",
+  intro:"Hold on tight. In a tiny fraction of a second, the universe is about to grow faster than at any time since.",
+  facts:[
+   {title:"The biggest growth spurt", text:"During inflation the universe grew from smaller than an atom to roughly the size of a grapefruit, in a tiny fraction of a second.",
+    term:["Inflation","a super-fast burst of expansion right after the Big Bang."], ref:"wmapUni"},
+   {title:"Faster than a blink", text:"Inflation was over by about 10⁻³² seconds. Written out, that is a decimal point, then 31 zeros, then a 1. A blink of your eye takes about 0.1 seconds.",
+    analogy:"It is like a grain of sand growing bigger than the whole Earth in less time than it takes light to cross an atom.", ref:"wmapUni"},
+   {title:"Ripples that became galaxies", text:"Inflation smoothed the universe out, but it left behind tiny ripples. Gravity later turned those ripples into the clumps that grew into galaxies.",
+    term:["Gravity","the force that pulls things with mass towards each other."], ref:"wmapUni"}
+  ],
+  quiz:{q:"What was inflation?", options:["A slow cooling that took billions of years","A super-fast stretch of the universe in a split second","The moment the first stars switched on"], answer:1,
+    explain:"Correct! Inflation was a super-fast stretch of the universe in the first split second."}
+},
+{ name:"The Afterglow", when:"380,000 years after the Big Bang",
+  intro:"The universe is a hot, glowing fog. Light can't get far before it bumps into something. Watch the fog clear as you explore.",
+  facts:[
+   {title:"A glowing fog", text:"For its first 380,000 years the universe was so hot that atoms couldn't hold together. Light kept bouncing off loose particles, so it couldn't travel far.",
+    analogy:"Like trying to shine a torch through thick fog. The light just scatters.", ref:"wmapTests"},
+   {title:"The fog clears", text:"As the universe expanded it cooled down. Atoms could finally form, the fog cleared, and light could travel freely across space.",
+    term:["Atom","the tiny building block of everything. Each one has a centre (the nucleus) with electrons around it."], ref:"wmapUni"},
+   {title:"Leftover light: the CMB", evidence:true, text:"That ancient light is still arriving today from every direction, stretched into microwaves. It is now very cold: about 2.7 degrees above absolute zero (−270 °C). The Big Bang theory predicted this glow, and scientists found it in 1965.",
+    term:["Cosmic microwave background (CMB)","the faint microwave glow left over from the hot early universe. It is the oldest light we can see."],
+    analogy:"Like the warmth you feel from an oven long after it's switched off.", ref:"wmapTests"}
+  ],
+  quiz:{q:"Why is the CMB evidence for the Big Bang?", options:["It is sunlight bouncing off the Moon","It is leftover light from when the young universe was hot and dense","It is radio signals from other planets"], answer:1,
+    explain:"Yes! The CMB is leftover light from the hot, dense early universe, just as the Big Bang theory predicted."}
+},
+{ name:"Dark Ages & First Stars", when:"380,000 to about 250 million years",
+  intro:"The glow has faded and there are no stars yet. The universe is dark. Collect the orbs to help gravity switch the first stars on.",
+  facts:[
+   {title:"The cosmic dark ages", text:"After the afterglow faded, there were no stars to make new light. The universe stayed dark for millions of years.",
+    analogy:"Like a huge dark room where nobody has switched the lights on yet.", ref:"ucl"},
+   {title:"Gravity gets to work", text:"Gravity slowly pulled clouds of hydrogen and helium gas into tighter and tighter clumps. Squeezing the gas made it hotter and hotter.",
+    term:["Gravity","the force that pulls things with mass towards each other."], ref:"webb"},
+   {title:"Lights on!", text:"When a clump got hot enough, nuclear fusion started and the first stars lit up, ending the dark ages. Scientists think this happened around 250 to 350 million years after the Big Bang.",
+    term:["Nuclear fusion","when tiny particles are squeezed together so hard that they join, making a new element and giving out huge amounts of energy. It is what makes stars shine."], ref:"ucl"}
+  ],
+  quiz:{q:"What ended the cosmic dark ages?", options:["The first stars switching on","The cosmic microwave background","The Big Freeze"], answer:0,
+    explain:"Spot on! The first stars lit up the universe and ended the dark ages."}
+},
+{ name:"Galaxies", when:"A few hundred million years onwards",
+  intro:"Stars are gathering into enormous spinning cities of light. Fly between the galaxies to find out how they formed.",
+  facts:[
+   {title:"Star cities", text:"Gravity pulled stars, gas and dust together into huge groups called galaxies. The James Webb Space Telescope can see galaxies from more than 13.5 billion years ago.",
+    term:["Galaxy","a huge group of stars, gas and dust held together by gravity."], ref:"webb"},
+   {title:"Our home: the Milky Way", text:"We live in the Milky Way galaxy. It has around 100 to 400 billion stars, and our Sun is just one of them.",
+    analogy:"If the Sun were a grain of sand, the Milky Way would hold enough grains to fill a 25-metre school swimming pool.", ref:"jpl"},
+   {title:"You are made of star stuff", text:"Big stars explode at the end of their lives. These explosions, called supernovas, spread heavier elements like carbon, oxygen and iron into space. Those elements later built planets, and you!",
+    term:["Supernova","the giant explosion of a large star at the end of its life."], ref:"webb"}
+  ],
+  quiz:{q:"What holds a galaxy together?", options:["Magnetism","Gravity","The cosmic microwave background"], answer:1,
+    explain:"Correct! Gravity holds the stars, gas and dust of a galaxy together."}
+},
+{ name:"Expansion", when:"Today · 13.8 billion years after the Big Bang",
+  intro:"Welcome to the present day. The universe is still stretching. Look closely at the galaxies: the further away they are, the redder they look.",
+  facts:[
+   {title:"Still stretching", text:"The universe is still expanding. Galaxies are getting further apart because the space between them is stretching.",
+    analogy:"Think of raisins in bread dough that is rising in the oven. As the dough grows, every raisin moves away from every other raisin.", ref:"jpl"},
+   {title:"Redshift", evidence:true, text:"As light travels through stretching space, its waves get stretched too. Longer waves look redder, so this is called redshift. Light from distant galaxies is redshifted, which shows they are moving away from us as the universe expands.",
+    term:["Wavelength","the distance from the top of one wave to the top of the next. Red light has a longer wavelength than blue light."],
+    analogy:"Draw a wavy line on a balloon, then blow it up. The waves get longer as the balloon stretches.", ref:"wmapTests"},
+   {title:"Hubble's discovery", text:"In 1929 Edwin Hubble found that the further away a galaxy is, the faster it moves away from us. Run the expansion backwards and everything was once squeezed together: the Big Bang. In 1998 scientists also found that the expansion is speeding up.",
+    term:["Dark energy","the unknown cause of the universe's expansion speeding up."], ref:"jpl"}
+  ],
+  quiz:{q:"What does redshift tell us about distant galaxies?", options:["They are very hot","They are moving away from us as space expands","They are made of red rock"], answer:1,
+    explain:"Exactly! Redshift shows distant galaxies are moving away from us because space is expanding."}
+},
+{ name:"The Big Freeze", when:"Trillions of years in the future",
+  intro:"You've reached the far future. Don't worry, this is trillions of years away! Explore to see how the universe will probably end.",
+  facts:[
+   {title:"Expanding forever", text:"Measurements suggest the universe will keep expanding forever. Scientists call this ending the Big Freeze, or heat death.",
+    term:["Big Freeze","a possible ending where the universe keeps expanding and slowly becomes cold and dark."], ref:"wmapFate"},
+   {title:"The lights go out", text:"Galaxies will drift so far apart that they disappear from view. Stars will use up their fuel and fade. Over trillions of years, no new stars will form.",
+    analogy:"Like a campfire. Once all the wood is burned, the embers slowly cool until there is nothing left glowing.", ref:"wmapFate"},
+   {title:"Other possible endings", text:"Scientists have other ideas too. In the Big Crunch, gravity pulls everything back together. In the Big Rip, expansion tears everything apart. In the Big Bounce, a crunch is followed by a brand new Big Bang. Current evidence points most strongly to the Big Freeze.",
+    ref:"wmapFate"}
+  ],
+  quiz:{q:"What happens in the Big Freeze?", options:["Everything crashes back together","The universe rips apart","The universe expands forever and slowly goes cold and dark"], answer:2,
+    explain:"That's it! In the Big Freeze the universe expands forever and slowly goes cold and dark."}
+}
+];
+const EVIDENCE_NAMES = {0:"The first elements",2:"Leftover light (CMB)",5:"Redshift"};
+
+/* ---------------- Setup ---------------- */
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const overlay=document.getElementById('overlay'), hint=document.getElementById('hint');
+const hudEra=document.getElementById('hudEra'), hudWhen=document.getElementById('hudWhen'), scoreEl=document.getElementById('score'), dotsEl=document.getElementById('dots');
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+dotsEl.innerHTML = ERAS.map(()=>'<i></i>').join('');
+let W=0,H=0,DPR=1;
+const S={mode:'title',era:0,score:0,t:0,ship:{x:0,y:0,vx:0,vy:0,a:-Math.PI/2,inv:0},orbs:[],hazards:[],gate:null,
+  bg:{},trail:[],warp:0,shake:0,firstTry:true,evidence:new Set(),pointer:null,keys:{}};
+
+function resize(){
+  const r=cv.getBoundingClientRect(); const oW=W,oH=H;
+  DPR=Math.min(2,window.devicePixelRatio||1); W=Math.max(1,r.width); H=Math.max(1,r.height);
+  cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR); ctx.setTransform(DPR,0,0,DPR,0,0);
+  if(oW&&oH){const sx=W/oW, sy=H/oH;
+    for(const o of [S.ship,...S.orbs,...S.hazards,...(S.gate?[S.gate]:[])]){o.x*=sx;o.y*=sy;}}
+}
+addEventListener('resize',resize);
+
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const U=()=>Math.min(W,H);
+
+function updateHud(){
+  const e=ERAS[S.era];
+  if(S.mode==='title'||S.mode==='end'){hudEra.textContent='Big Bang Time Machine';hudWhen.textContent='13.8 billion years of history';}
+  else{hudEra.textContent=`${S.era+1}/7 · ${e.name}`;hudWhen.textContent=e.when;}
+  [...dotsEl.children].forEach((d,i)=>{d.className = (S.mode==='end'||i<S.era)?'done':(i===S.era&&S.mode!=='title'?'now':'');});
+  scoreEl.textContent=S.score;
+}
+
+/* ---------------- Era setup ---------------- */
+function placeAway(list,minD){
+  for(let tries=0;tries<80;tries++){
+    const x=rnd(W*.12,W*.88), y=rnd(H*.14,H*.82);
+    if(Math.hypot(x-S.ship.x,y-S.ship.y)<U()*.28) continue;
+    if(list.every(o=>Math.hypot(o.x-x,o.y-y)>minD)) return {x,y};
+  }
+  return {x:rnd(W*.12,W*.88),y:rnd(H*.14,H*.5)};
+}
+function startEra(i){
+  S.era=i; S.firstTry=true; S.gate=null; S.trail=[];
+  S.ship.x=W/2; S.ship.y=H*.85; S.ship.vx=S.ship.vy=0; S.ship.a=-Math.PI/2; S.ship.inv=0;
+  S.orbs=[];
+  ERAS[i].facts.forEach((f,k)=>{const p=placeAway(S.orbs,U()*.25);
+    S.orbs.push({x:p.x,y:p.y,vx:rnd(-12,12),vy:rnd(-12,12),k,ev:!!f.evidence,taken:false,ph:rnd(0,6)});});
+  S.hazards=[]; const n=2+Math.floor(i/2);
+  for(let h=0;h<n;h++){const p=placeAway([...S.orbs,...S.hazards],U()*.18);
+    const sp=rnd(40,70)+i*6, a=rnd(0,Math.PI*2);
+    S.hazards.push({x:p.x,y:p.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,rot:0});}
+  setupBg(i);
+  S.mode='intro'; updateHud(); showIntro();
+}
+
+/* ---------------- Backgrounds ---------------- */
+function setupBg(i){
+  const b={};
+  b.stars=Array.from({length:160},()=>({x:Math.random(),y:Math.random(),r:rnd(.4,1.6),tw:rnd(0,6)}));
+  if(i===0) b.sparks=Array.from({length:140},()=>({a:rnd(0,Math.PI*2),d:rnd(0,1),s:rnd(.15,.5)}));
+  if(i===1) b.streaks=Array.from({length:180},()=>({a:rnd(0,Math.PI*2),d:rnd(.01,1)}));
+  if(i===2) b.blobs=Array.from({length:80},()=>({x:Math.random(),y:Math.random(),r:rnd(.06,.18),h:rnd(10,30),al:rnd(.15,.35),dx:rnd(-.01,.01),dy:rnd(-.01,.01)}));
+  if(i===3){b.clouds=Array.from({length:14},()=>({x:Math.random(),y:Math.random(),r:rnd(.12,.3)}));
+    b.first=Array.from({length:66},(_,k)=>({x:Math.random(),y:Math.random(),r:rnd(1,2.6),grp:k%3,born:null}));}
+  if(i===4) b.gals=Array.from({length:6},()=>{const pts=[];const n=140;
+      for(let k=0;k<n;k++){const arm=k%2, f=k/n;pts.push({r:f, a:arm*Math.PI+f*5+rnd(-.25,.25), s:rnd(.6,1.8)});}
+      return {x:Math.random(),y:Math.random(),size:rnd(.08,.16),tilt:rnd(.35,1),rot:rnd(0,6),spin:rnd(.05,.12)*(Math.random()<.5?-1:1),hue:rnd(200,300),pts};});
+  if(i===5) b.gals=Array.from({length:70},()=>({a:rnd(0,Math.PI*2),d:rnd(.02,1),tilt:rnd(0,Math.PI)}));
+  if(i===6) b.stars.forEach(s=>{s.life=rnd(.3,1);s.red=Math.random()<.35;});
+  S.bg=b;
+}
+function progress(){return S.orbs.filter(o=>o.taken).length/3;}
+function drawBg(dt){
+  const i=S.era, b=S.bg, t=S.t, cx=W/2, cy=H/2, R=Math.hypot(W,H)/2;
+  const mv = (S.mode==='play'||S.mode==='warp'||S.mode==='intro')?1:0.3;
+  if(i===0){
+    const pulse=1+Math.sin(t*2)*.04;
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,R*pulse);
+    g.addColorStop(0,'#fff6d8');g.addColorStop(.12,'#ffcf6b');g.addColorStop(.35,'#e0601f');g.addColorStop(.7,'#5a1208');g.addColorStop(1,'#1c0505');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    for(const s of b.sparks){s.d+=s.s*dt*mv*.4; if(s.d>1.1){s.d=0;s.a=rnd(0,Math.PI*2);}
+      const r=s.d*R;ctx.fillStyle=`rgba(255,${200-s.d*120|0},120,${1-s.d*.8})`;
+      ctx.fillRect(cx+Math.cos(s.a)*r,cy+Math.sin(s.a)*r,2.2,2.2);}
+  } else if(i===1){
+    ctx.fillStyle='#120826';ctx.fillRect(0,0,W,H);
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,R*.5);g.addColorStop(0,'rgba(200,150,255,.35)');g.addColorStop(1,'rgba(200,150,255,0)');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    ctx.lineCap='round';
+    for(const s of b.streaks){s.d*=1+dt*mv*1.6; if(s.d>1.2){s.d=rnd(.01,.05);s.a=rnd(0,Math.PI*2);}
+      const r1=s.d*R, r2=r1*1.18;ctx.strokeStyle=`rgba(${190+s.d*60|0},${170+s.d*60|0},255,${Math.min(1,s.d*1.5)})`;
+      ctx.lineWidth=1+s.d*2;ctx.beginPath();ctx.moveTo(cx+Math.cos(s.a)*r1,cy+Math.sin(s.a)*r1);ctx.lineTo(cx+Math.cos(s.a)*r2,cy+Math.sin(s.a)*r2);ctx.stroke();}
+  } else if(i===2){
+    const clear=progress();
+    ctx.fillStyle=`rgb(${60-clear*45|0},${22-clear*14|0},${14+clear*6|0})`;ctx.fillRect(0,0,W,H);
+    for(const bl of b.blobs){bl.x+=bl.dx*dt*mv;bl.y+=bl.dy*dt*mv;
+      const x=((bl.x%1)+1)%1*W, y=((bl.y%1)+1)%1*H, r=bl.r*U()*1.4;
+      const g=ctx.createRadialGradient(x,y,0,x,y,r);const a=bl.al*(1-clear*.75);
+      g.addColorStop(0,`hsla(${bl.h},100%,60%,${a})`);g.addColorStop(1,`hsla(${bl.h},100%,50%,0)`);
+      ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);}
+  } else if(i===3){
+    ctx.fillStyle='#05040c';ctx.fillRect(0,0,W,H);
+    for(const c of b.clouds){const x=c.x*W,y=c.y*H,r=c.r*U()*1.5;const g=ctx.createRadialGradient(x,y,0,x,y,r);
+      g.addColorStop(0,'rgba(120,90,200,.09)');g.addColorStop(1,'rgba(120,90,200,0)');ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);}
+    const lit=S.orbs.filter(o=>o.taken).length;
+    for(const s of b.first){ if(s.grp<lit){ if(s.born===null) s.born=t+rnd(0,1.2);
+        const age=t-s.born; if(age<0) continue; const f=Math.min(1,age/.6);
+        const flash=age<.6?(1-age/.6)*6:0, r=s.r*f+flash;
+        ctx.fillStyle=`rgba(200,225,255,${.6+.4*Math.sin(t*3+s.x*20)})`;ctx.beginPath();ctx.arc(s.x*W,s.y*H,Math.max(.5,r),0,7);ctx.fill();}}
+  } else if(i===4){
+    ctx.fillStyle='#070b1f';ctx.fillRect(0,0,W,H);starfield(.6);
+    for(const gx of b.gals){gx.rot+=gx.spin*dt*mv; const X=gx.x*W,Y=gx.y*H,sz=gx.size*U()*2.2;
+      const g=ctx.createRadialGradient(X,Y,0,X,Y,sz*.35);g.addColorStop(0,'rgba(255,240,200,.8)');g.addColorStop(1,'rgba(255,240,200,0)');
+      ctx.fillStyle=g;ctx.fillRect(X-sz,Y-sz,sz*2,sz*2);
+      for(const p of gx.pts){const a=p.a+gx.rot, r=p.r*sz;const px=X+Math.cos(a)*r, py=Y+Math.sin(a)*r*gx.tilt;
+        ctx.fillStyle=`hsla(${gx.hue},80%,${75-p.r*20}%,${.85-p.r*.5})`;ctx.fillRect(px,py,p.s,p.s);}}
+  } else if(i===5){
+    ctx.fillStyle='#06081a';ctx.fillRect(0,0,W,H);starfield(.35);
+    for(const gx of b.gals){gx.d*=1+dt*mv*.12; if(gx.d>1.15){gx.d=rnd(.02,.06);gx.a=rnd(0,Math.PI*2);}
+      const r=gx.d*R, x=cx+Math.cos(gx.a)*r, y=cy+Math.sin(gx.a)*r;
+      const red=Math.min(1,gx.d); const col=`rgb(${170+red*85|0},${200-red*150|0},${255-red*215|0})`;
+      const sz=2+gx.d*6;ctx.save();ctx.translate(x,y);ctx.rotate(gx.tilt);ctx.fillStyle=col;ctx.globalAlpha=.9;
+      ctx.beginPath();ctx.ellipse(0,0,sz,sz*.45,0,0,7);ctx.fill();ctx.restore();}
+    ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.arc(cx,cy,3,0,7);ctx.fill();
+  } else {
+    const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#03050c');g.addColorStop(1,'#0a1426');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    const fade=progress();
+    for(const s of b.stars){const life=Math.max(0,s.life-fade*.6-Math.max(0,Math.sin(t*.15+s.tw))*.15);
+      if(life<=0) continue;ctx.fillStyle=s.red?`rgba(255,120,100,${life*.8})`:`rgba(190,215,255,${life})`;
+      ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r*life+.2,0,7);ctx.fill();}
+  }
+}
+function starfield(a){for(const s of S.bg.stars){ctx.fillStyle=`rgba(255,255,255,${a*(.5+.5*Math.sin(S.t*2+s.tw))})`;ctx.fillRect(s.x*W,s.y*H,s.r,s.r);}}
+
+/* ---------------- Sprites ---------------- */
+function drawShip(){
+  const s=S.ship; if(s.inv>0 && Math.floor(s.inv*12)%2===0) return;
+  for(const p of S.trail){ctx.fillStyle=`rgba(255,201,74,${p.l*.6})`;ctx.beginPath();ctx.arc(p.x,p.y,4*p.l+1,0,7);ctx.fill();}
+  ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.a+Math.PI/2);
+  const speed=Math.hypot(s.vx,s.vy);
+  if(speed>30){ctx.fillStyle='#ffb02e';ctx.beginPath();ctx.moveTo(-6,14);ctx.lineTo(0,14+Math.min(18,speed/14)+Math.random()*5);ctx.lineTo(6,14);ctx.fill();}
+  ctx.fillStyle='#ff6b86';ctx.beginPath();ctx.moveTo(-9,6);ctx.lineTo(-15,16);ctx.lineTo(-6,13);ctx.fill();ctx.beginPath();ctx.moveTo(9,6);ctx.lineTo(15,16);ctx.lineTo(6,13);ctx.fill();
+  ctx.fillStyle='#ece8ff';ctx.strokeStyle='#0b0a1f';ctx.lineWidth=2;
+  ctx.beginPath();ctx.ellipse(0,0,10,17,0,0,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#5ee6ff';ctx.beginPath();ctx.arc(0,-4,5,0,7);ctx.fill();ctx.stroke();
+  ctx.restore();
+}
+function drawOrb(o){
+  const pulse=1+Math.sin(S.t*3+o.ph)*.12, r=15*pulse, col=o.ev?'94,230,255':'255,201,74';
+  const g=ctx.createRadialGradient(o.x,o.y,0,o.x,o.y,r*2.6);g.addColorStop(0,`rgba(${col},.9)`);g.addColorStop(.4,`rgba(${col},.35)`);g.addColorStop(1,`rgba(${col},0)`);
+  ctx.fillStyle=g;ctx.fillRect(o.x-r*3,o.y-r*3,r*6,r*6);
+  ctx.fillStyle=`rgb(${col})`;ctx.strokeStyle='#0b0a1f';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(o.x,o.y,r,0,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#0b0a1f';ctx.font='18px Bungee, Impact, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(o.ev?'!':'?',o.x,o.y+1);
+  if(o.ev){ctx.font='800 11px Nunito, sans-serif';ctx.fillStyle='#5ee6ff';ctx.fillText('EVIDENCE',o.x,o.y+r+12);}
+}
+function drawHazard(h){
+  ctx.save();ctx.translate(h.x,h.y);ctx.rotate(h.rot);
+  ctx.fillStyle='#ff6b86';ctx.strokeStyle='#2a0612';ctx.lineWidth=2;ctx.beginPath();
+  for(let k=0;k<16;k++){const r=k%2?7:16, a=k*Math.PI/8;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.fillStyle='#2a0612';ctx.beginPath();ctx.arc(0,0,3.5,0,7);ctx.fill();ctx.restore();
+}
+function drawGate(g){
+  const r=34+Math.sin(S.t*4)*3;
+  ctx.save();ctx.translate(g.x,g.y);
+  const gr=ctx.createRadialGradient(0,0,0,0,0,r*1.8);gr.addColorStop(0,'rgba(255,255,255,.9)');gr.addColorStop(.35,'rgba(94,230,255,.5)');gr.addColorStop(1,'rgba(94,230,255,0)');
+  ctx.fillStyle=gr;ctx.beginPath();ctx.arc(0,0,r*1.8,0,7);ctx.fill();
+  ctx.rotate(S.t*1.5);ctx.lineWidth=5;
+  for(let k=0;k<3;k++){ctx.strokeStyle=k%2?'#ffc94a':'#5ee6ff';ctx.beginPath();ctx.arc(0,0,r-k*7,k,k+Math.PI*1.3);ctx.stroke();}
+  ctx.restore();
+  ctx.font='12px Bungee, Impact, sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText('TIME GATE',g.x,g.y+r+20);
+}
+
+/* ---------------- Loop ---------------- */
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now; S.t+=dt;
+  if(S.mode==='play') update(dt);
+  if(S.mode==='warp'){S.warp+=dt; if(S.warp>(reduced?.4:1.3)){S.mode='x'; S.era+1<ERAS.length?startEra(S.era+1):showEnd();}}
+  ctx.save();
+  if(S.shake>0&&!reduced){S.shake-=dt;ctx.translate(rnd(-5,5),rnd(-5,5));}
+  drawBg(dt);
+  if(S.mode!=='title'&&S.mode!=='end'){
+    if(S.gate) drawGate(S.gate);
+    S.orbs.forEach(o=>{if(!o.taken) drawOrb(o);});
+    S.hazards.forEach(drawHazard);
+    drawShip();
+  }
+  if(S.mode==='warp'){const k=S.warp/1.3;ctx.fillStyle=`rgba(255,255,255,${Math.min(1,k*k)})`;ctx.fillRect(-10,-10,W+20,H+20);}
+  ctx.restore();
+  requestAnimationFrame(frame);
+}
+function update(dt){
+  const s=S.ship, maxV=180+U()*.35;
+  let dx=0,dy=0; const K=S.keys;
+  if(K.ArrowLeft||K.a) dx-=1; if(K.ArrowRight||K.d) dx+=1; if(K.ArrowUp||K.w) dy-=1; if(K.ArrowDown||K.s) dy+=1;
+  let tvx=0,tvy=0;
+  if(dx||dy){const m=Math.hypot(dx,dy);tvx=dx/m*maxV;tvy=dy/m*maxV;}
+  else if(S.pointer){const px=S.pointer.x-s.x, py=S.pointer.y-s.y, d=Math.hypot(px,py);
+    if(d>4){const sp=Math.min(maxV,d*4);tvx=px/d*sp;tvy=py/d*sp;}}
+  const k=Math.min(1,dt*6); s.vx+=(tvx-s.vx)*k; s.vy+=(tvy-s.vy)*k;
+  s.x=Math.max(16,Math.min(W-16,s.x+s.vx*dt)); s.y=Math.max(20,Math.min(H-20,s.y+s.vy*dt));
+  if(Math.hypot(s.vx,s.vy)>20) s.a=Math.atan2(s.vy,s.vx);
+  if(s.inv>0) s.inv-=dt;
+  S.trail.push({x:s.x,y:s.y,l:1}); S.trail.forEach(p=>p.l-=dt*2.5); S.trail=S.trail.filter(p=>p.l>0).slice(-30);
+
+  for(const o of S.orbs){ if(o.taken) continue;
+    o.x+=o.vx*dt;o.y+=o.vy*dt; if(o.x<30||o.x>W-30)o.vx*=-1; if(o.y<30||o.y>H-40)o.vy*=-1;
+    if(Math.hypot(o.x-s.x,o.y-s.y)<30){o.taken=true; collect(o); return;} }
+  for(const h of S.hazards){
+    h.x+=h.vx*dt;h.y+=h.vy*dt;h.rot+=dt*2;
+    if(h.x<16){h.x=16;h.vx=Math.abs(h.vx);} if(h.x>W-16){h.x=W-16;h.vx=-Math.abs(h.vx);}
+    if(h.y<16){h.y=16;h.vy=Math.abs(h.vy);} if(h.y>H-16){h.y=H-16;h.vy=-Math.abs(h.vy);}
+    const d=Math.hypot(h.x-s.x,h.y-s.y);
+    if(d<26&&s.inv<=0){S.score=Math.max(0,S.score-50);updateHud();s.inv=1.2;S.shake=.3;
+      s.vx=(s.x-h.x)/d*320;s.vy=(s.y-h.y)/d*320;flashHint('Ouch! A time glitch cost you 50 points');}
+  }
+  if(S.gate&&Math.hypot(S.gate.x-s.x,S.gate.y-s.y)<40){S.mode='quiz';S.pointer=null;showQuiz();}
+  if(!hintFlash) setHintText();
+}
+
+/* ---------------- Hint ---------------- */
+let hintFlash=0;
+function setHintText(){
+  const n=S.orbs.filter(o=>o.taken).length;
+  hint.textContent = S.gate ? 'All found! Fly into the time gate' : `Collect the glowing orbs: ${n} of 3`;
+}
+function flashHint(msg){hint.textContent=msg;clearTimeout(hintFlash);hintFlash=setTimeout(()=>{hintFlash=0;setHintText();},1600);}
+
+/* ---------------- Panels ---------------- */
+function show(html,cls=''){overlay.innerHTML=`<div class="panel ${cls}" role="dialog" aria-modal="true">${html}</div>`;overlay.hidden=false;hint.hidden=true;
+  const b=overlay.querySelector('button.go')||overlay.querySelector('button');if(b)b.focus({preventScroll:true});}
+function hide(){overlay.hidden=true;overlay.innerHTML='';}
+function on(id,fn){const el=document.getElementById(id);if(el)el.onclick=fn;}
+
+function showTitle(){
+  S.mode='title';updateHud();
+  show(`<p class="eyebrow">A journey through 13.8 billion years</p>
+   <h1>Big Bang Time Machine</h1>
+   <p class="big">Pilot your time pod from the very first moment of the universe to its far future. Collect facts, find the evidence for the Big Bang, and pass each time gate to travel on.</p>
+   <ul class="list">
+     <li><b>Steer:</b> touch and drag, hold the mouse button, or use the arrow keys.</li>
+     <li><b style="color:var(--star)">Yellow orbs</b> hold facts. <b style="color:var(--evidence)">Blue orbs</b> hold evidence for the Big Bang.</li>
+     <li>Dodge the red <b style="color:var(--danger)">time glitches</b>.</li>
+   </ul>
+   <div class="row"><button class="go" id="bStart">Start the journey</button><button id="bGloss">Glossary</button><button id="bSrc">Sources</button></div>`);
+  on('bStart',()=>{S.score=0;S.evidence=new Set();hide();startEra(0);});
+  on('bGloss',()=>showGlossary(showTitle)); on('bSrc',()=>showSources(showTitle));
+}
+function showIntro(){
+  const e=ERAS[S.era];
+  show(`<p class="eyebrow">Era ${S.era+1} of 7</p><h2>${e.name}</h2><p class="whenline">${e.when}</p><p class="big">${e.intro}</p>
+   <div class="row"><button class="go" id="bGo">Explore</button></div>`);
+  on('bGo',()=>{hide();S.mode='play';hint.hidden=false;setHintText();});
+}
+function collect(o){
+  const e=ERAS[S.era], f=e.facts[o.k], n=S.orbs.filter(x=>x.taken).length;
+  S.score+=o.ev?200:100; if(o.ev) S.evidence.add(S.era); updateHud();
+  S.mode='card'; S.pointer=null;
+  const r=REFS[f.ref];
+  show(`<p class="eyebrow">${o.ev?'Evidence for the Big Bang found!':`Fact ${n} of 3`} · ${e.name}</p>
+   <h2>${f.title}</h2><p class="big">${f.text}</p>
+   ${f.term?`<div class="term"><b>${f.term[0]}:</b> ${f.term[1]}</div>`:''}
+   ${f.analogy?`<div class="analogy"><span>Think of it like this</span>${f.analogy}</div>`:''}
+   <p class="src">Source: (${r.cite})</p>
+   <div class="row"><button class="go" id="bOk">Keep exploring</button></div>`, o.ev?'evidence':'fact');
+  on('bOk',()=>{hide();
+    if(S.orbs.every(x=>x.taken)){const p=placeAway(S.hazards,U()*.15);S.gate={x:p.x,y:Math.min(p.y,H*.6)};}
+    S.mode='play';hint.hidden=false;setHintText();});
+}
+function showQuiz(){
+  const q=ERAS[S.era].quiz;
+  show(`<p class="eyebrow">Time gate check · answer to travel on</p><h2>${q.q}</h2>
+   <div class="opts">${q.options.map((o,i)=>`<button data-i="${i}">${o}</button>`).join('')}</div>
+   <p class="fb" id="fb" aria-live="polite"></p><div class="row" id="next"></div>`);
+  overlay.querySelectorAll('.opts button').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.i, fb=document.getElementById('fb');
+    if(i===q.answer){
+      b.classList.add('right'); overlay.querySelectorAll('.opts button').forEach(x=>x.disabled=true);
+      const pts=S.firstTry?300:100; S.score+=pts; updateHud();
+      fb.className='fb ok'; fb.textContent=`${q.explain} +${pts} points`;
+      const last=S.era===ERAS.length-1;
+      document.getElementById('next').innerHTML=`<button class="go" id="bJump">${last?'Finish the journey':'Jump to the next era'}</button>`;
+      const j=document.getElementById('bJump'); j.focus(); j.onclick=()=>{hide();S.mode='warp';S.warp=0;};
+    } else {
+      b.classList.add('wrong'); b.disabled=true; S.firstTry=false;
+      fb.className='fb no'; fb.textContent='Not quite. Think back to the facts you collected and try again.';
+    }
+  });
+}
+function showEnd(){
+  S.mode='end';updateHud();
+  const badges=Object.entries(EVIDENCE_NAMES).map(([i,n])=>`<span class="badge ${S.evidence.has(+i)?'':'miss'}">${n}</span>`).join('');
+  show(`<p class="eyebrow">Journey complete</p><h1>${S.score} points</h1>
+   <p class="big">You travelled from the Big Bang, through inflation, the afterglow, the first stars and galaxies, to today's expanding universe and its icy far future.</p>
+   <p class="eyebrow">Evidence for the Big Bang you found</p><div class="badges">${badges}</div>
+   <div class="row"><button class="go" id="bAgain">Play again</button><button id="bGloss">Glossary</button><button id="bSrc">Sources</button></div>`);
+  on('bAgain',()=>{S.score=0;S.evidence=new Set();hide();startEra(0);});
+  on('bGloss',()=>showGlossary(showEnd)); on('bSrc',()=>showSources(showEnd));
+}
+function showGlossary(back){
+  const seen=new Map();ERAS.forEach(e=>e.facts.forEach(f=>{if(f.term&&!seen.has(f.term[0]))seen.set(f.term[0],f.term[1]);}));
+  const items=[...seen].sort((a,b)=>a[0].localeCompare(b[0])).map(([w,d])=>`<li><b style="color:var(--evidence)">${w}:</b> ${d}</li>`).join('');
+  show(`<p class="eyebrow">Science words</p><h2>Glossary</h2><ul class="list">${items}</ul><div class="row"><button class="go" id="bBack">Back</button></div>`);
+  on('bBack',back);
+}
+function showSources(back){
+  const items=Object.values(REFS).sort((a,b)=>a.text.localeCompare(b.text))
+    .map(r=>`<li>${r.text}<a href="${r.url}" target="_blank" rel="noopener">${r.url}</a> (Accessed: ${ACCESSED}).</li>`).join('');
+  show(`<p class="eyebrow">Bibliography (Harvard style)</p><h2>Sources</h2><ol class="refs">${items}</ol><div class="row"><button class="go" id="bBack">Back</button></div>`);
+  on('bBack',back);
+}
+
+/* ---------------- Input ---------------- */
+function ptr(e){const r=cv.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
+cv.addEventListener('pointerdown',e=>{if(S.mode!=='play')return;S.pointer=ptr(e);cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{if(S.pointer&&S.mode==='play')S.pointer=ptr(e);});
+['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,()=>S.pointer=null));
+addEventListener('keydown',e=>{const k=e.key.length===1?e.key.toLowerCase():e.key;
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','w','a','s','d'].includes(k)){S.keys[k]=true;if(S.mode==='play')e.preventDefault();}});
+addEventListener('keyup',e=>{const k=e.key.length===1?e.key.toLowerCase():e.key;S.keys[k]=false;});
+addEventListener('blur',()=>{S.keys={};S.pointer=null;});
+
+/* ---------------- Boot ---------------- */
+resize(); S.ship.x=W/2; S.ship.y=H*.85; setupBg(0);
+showTitle();
+requestAnimationFrame(frame);
+</script>
