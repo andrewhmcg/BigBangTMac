@@ -82,6 +82,15 @@ ol.refs a{color:var(--evidence);word-break:break-all}
 .badge{border:2px solid var(--evidence);color:var(--evidence);border-radius:999px;padding:6px 12px;font-weight:800;font-size:14px}
 .badge.miss{border-color:var(--line);color:var(--muted)}
 .keys{font-size:14px;color:var(--muted)}
+.hudbtn{padding:6px 12px;font-size:14px;border-radius:999px}
+ol.placed{margin:0;padding-left:24px;display:flex;flex-direction:column;gap:6px}
+ol.placed:empty{display:none}
+ol.placed li{line-height:1.3}
+ol.placed li span{display:block;font-size:13px;color:var(--muted)}
+.opts button.wrong{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.recap{display:flex;flex-direction:column;gap:8px}
+@media (prefers-reduced-motion:reduce){.opts button.wrong{animation:none}}
 @media (max-width:520px){#hud .when{display:none}.panel{padding:18px}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
 </style>
@@ -94,6 +103,7 @@ ol.refs a{color:var(--evidence);word-break:break-all}
     </div>
     <div id="dots" aria-hidden="true"></div>
     <div id="score">0</div>
+    <button class="hudbtn" id="bMenu" hidden>Menu</button>
   </div>
   <div id="stage">
     <canvas id="cv" aria-label="Game area: fly your time pod to collect glowing orbs"></canvas>
@@ -232,6 +242,60 @@ function resize(){
 addEventListener('resize',resize);
 
 const rnd=(a,b)=>a+Math.random()*(b-a);
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;};
+const WARP = reduced?.5:1.8;
+S.fx=[];S.pops=[];
+
+/* ---------------- Sound ---------------- */
+let AC=null, muted=false;
+try{muted=localStorage.getItem('bbtm-muted')==='1';}catch(e){}
+function audio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}}
+  if(AC.state==='suspended')AC.resume();return AC;}
+function tone(freq,dur,type='sine',vol=.12,slide=0,delay=0){
+  if(muted)return;const a=audio();if(!a)return;const t=a.currentTime+delay;
+  const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.setValueAtTime(freq,t);
+  if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,freq+slide),t+dur);
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);
+  o.connect(g).connect(a.destination);o.start(t);o.stop(t+dur+.05);}
+const SFX={
+  collect:()=>{tone(660,.12,'triangle');tone(990,.2,'triangle',.1,0,.08);},
+  evidence:()=>[523,659,784,1046].forEach((f,i)=>tone(f,.22,'triangle',.1,0,i*.08)),
+  hit:()=>tone(240,.3,'sawtooth',.1,-180),
+  right:()=>{tone(784,.15,'triangle');tone(1175,.25,'triangle',.1,0,.1);},
+  wrong:()=>tone(200,.25,'square',.06,-60),
+  gate:()=>tone(440,.35,'sine',.12,440),
+  warp:()=>{tone(110,1.6,'sawtooth',.05,1200);tone(220,1.6,'sine',.08,1600);},
+  win:()=>[523,659,784,1046,1318].forEach((f,i)=>tone(f,.3,'triangle',.1,0,i*.12))
+};
+function toggleMute(){muted=!muted;try{localStorage.setItem('bbtm-muted',muted?'1':'0');}catch(e){}if(!muted)SFX.collect();}
+const sndLabel=()=>muted?'Sound: off':'Sound: on';
+
+/* ---------------- Effects ---------------- */
+function burst(x,y,col,n){for(let i=0;i<n;i++){const a=rnd(0,7),sp=rnd(60,280);S.fx.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,l:1,col});}}
+function pop(x,y,text,col){S.pops.push({x,y,text,col,l:1});}
+function updateFx(dt){
+  for(const p of S.fx){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.95;p.vy*=.95;p.l-=dt*1.5;}S.fx=S.fx.filter(p=>p.l>0);
+  for(const p of S.pops){p.y-=45*dt;p.l-=dt*.9;}S.pops=S.pops.filter(p=>p.l>0);}
+function drawFx(){
+  for(const p of S.fx){ctx.fillStyle=`rgba(${p.col},${p.l})`;ctx.fillRect(p.x-2,p.y-2,4,4);}
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='20px Bungee, Impact, sans-serif';
+  for(const p of S.pops){ctx.fillStyle=`rgba(${p.col},${Math.min(1,p.l*1.5)})`;ctx.strokeStyle=`rgba(11,10,31,${Math.min(1,p.l*1.5)})`;ctx.lineWidth=4;
+    ctx.strokeText(p.text,p.x,p.y);ctx.fillText(p.text,p.x,p.y);}}
+function drawWarp(k){
+  const cx=W/2,cy=H/2,R=Math.hypot(W,H)/2;
+  ctx.fillStyle=`rgba(10,8,30,${Math.min(.75,k*1.5)})`;ctx.fillRect(0,0,W,H);
+  ctx.lineCap='round';
+  for(let n=0;n<110;n++){const a=n*2.399, r1=(((n*37)%100)/100+k*2.2)%1*R, r2=r1+15+k*R*.45;
+    ctx.strokeStyle=n%3?'rgba(94,230,255,.75)':'rgba(255,201,74,.85)';ctx.lineWidth=1.5+k*2;
+    ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*r1,cy+Math.sin(a)*r1);ctx.lineTo(cx+Math.cos(a)*r2,cy+Math.sin(a)*r2);ctx.stroke();}
+  const wf=Math.max(0,(k-.65)/.35);ctx.fillStyle=`rgba(255,255,255,${wf})`;ctx.fillRect(-10,-10,W+20,H+20);
+  const nx=S.era+1<ERAS.length?ERAS[S.era+1]:null;
+  ctx.globalAlpha=Math.min(1,k*2.5);ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=wf>.4?'#0b0a1f':'#ffffff';
+  ctx.font='800 14px Nunito, sans-serif';ctx.fillText('TRAVELLING THROUGH TIME TO',cx,cy-38);
+  ctx.font=`${Math.min(34,W/11)|0}px Bungee, Impact, sans-serif`;ctx.fillText(nx?nx.name:'The Final Challenge',cx,cy);
+  ctx.font='700 15px Nunito, sans-serif';ctx.fillText(nx?nx.when:'Put the history of the universe in order',cx,cy+34);
+  ctx.globalAlpha=1;}
 const U=()=>Math.min(W,H);
 
 function updateHud(){
@@ -240,6 +304,7 @@ function updateHud(){
   else{hudEra.textContent=`${S.era+1}/7 · ${e.name}`;hudWhen.textContent=e.when;}
   [...dotsEl.children].forEach((d,i)=>{d.className = (S.mode==='end'||i<S.era)?'done':(i===S.era&&S.mode!=='title'?'now':'');});
   scoreEl.textContent=S.score;
+  document.getElementById('bMenu').hidden = ['title','end','order'].includes(S.mode);
 }
 
 /* ---------------- Era setup ---------------- */
@@ -386,17 +451,20 @@ let last=performance.now();
 function frame(now){
   const dt=Math.min(.05,(now-last)/1000); last=now; S.t+=dt;
   if(S.mode==='play') update(dt);
-  if(S.mode==='warp'){S.warp+=dt; if(S.warp>(reduced?.4:1.3)){S.mode='x'; S.era+1<ERAS.length?startEra(S.era+1):showEnd();}}
+  if(S.mode==='collect'){S.pend-=dt; if(S.pend<=0) collect(S.pendOrb);}
+  if(S.mode==='warp'){S.warp+=dt; if(S.warp>WARP){S.mode='x'; S.era+1<ERAS.length?startEra(S.era+1):showOrder();}}
+  updateFx(dt);
   ctx.save();
   if(S.shake>0&&!reduced){S.shake-=dt;ctx.translate(rnd(-5,5),rnd(-5,5));}
   drawBg(dt);
-  if(S.mode!=='title'&&S.mode!=='end'){
+  if(!['title','end','warp','order'].includes(S.mode)){
     if(S.gate) drawGate(S.gate);
     S.orbs.forEach(o=>{if(!o.taken) drawOrb(o);});
     S.hazards.forEach(drawHazard);
     drawShip();
+    drawFx();
   }
-  if(S.mode==='warp'){const k=S.warp/1.3;ctx.fillStyle=`rgba(255,255,255,${Math.min(1,k*k)})`;ctx.fillRect(-10,-10,W+20,H+20);}
+  if(S.mode==='warp') drawWarp(S.warp/WARP);
   ctx.restore();
   requestAnimationFrame(frame);
 }
@@ -416,16 +484,20 @@ function update(dt){
 
   for(const o of S.orbs){ if(o.taken) continue;
     o.x+=o.vx*dt;o.y+=o.vy*dt; if(o.x<30||o.x>W-30)o.vx*=-1; if(o.y<30||o.y>H-40)o.vy*=-1;
-    if(Math.hypot(o.x-s.x,o.y-s.y)<30){o.taken=true; collect(o); return;} }
+    if(Math.hypot(o.x-s.x,o.y-s.y)<30){
+      o.taken=true; S.mode='collect'; S.pend=reduced?.1:.5; S.pendOrb=o; S.pointer=null;
+      const c=o.ev?'94,230,255':'255,201,74'; burst(o.x,o.y,c,o.ev?44:26); pop(o.x,o.y-26,o.ev?'+200':'+100',c);
+      (o.ev?SFX.evidence:SFX.collect)(); return;} }
   for(const h of S.hazards){
     h.x+=h.vx*dt;h.y+=h.vy*dt;h.rot+=dt*2;
     if(h.x<16){h.x=16;h.vx=Math.abs(h.vx);} if(h.x>W-16){h.x=W-16;h.vx=-Math.abs(h.vx);}
     if(h.y<16){h.y=16;h.vy=Math.abs(h.vy);} if(h.y>H-16){h.y=H-16;h.vy=-Math.abs(h.vy);}
     const d=Math.hypot(h.x-s.x,h.y-s.y);
     if(d<26&&s.inv<=0){S.score=Math.max(0,S.score-50);updateHud();s.inv=1.2;S.shake=.3;
-      s.vx=(s.x-h.x)/d*320;s.vy=(s.y-h.y)/d*320;flashHint('Ouch! A time glitch cost you 50 points');}
+      s.vx=(s.x-h.x)/d*320;s.vy=(s.y-h.y)/d*320;flashHint('Ouch! A time glitch cost you 50 points');
+      SFX.hit();burst(s.x,s.y,'255,107,134',18);pop(s.x,s.y-26,'-50','255,107,134');}
   }
-  if(S.gate&&Math.hypot(S.gate.x-s.x,S.gate.y-s.y)<40){S.mode='quiz';S.pointer=null;showQuiz();}
+  if(S.gate&&Math.hypot(S.gate.x-s.x,S.gate.y-s.y)<40){S.mode='quiz';S.pointer=null;SFX.gate();showQuiz();}
   if(!hintFlash) setHintText();
 }
 
@@ -452,10 +524,13 @@ function showTitle(){
      <li><b>Steer:</b> touch and drag, hold the mouse button, or use the arrow keys.</li>
      <li><b style="color:var(--star)">Yellow orbs</b> hold facts. <b style="color:var(--evidence)">Blue orbs</b> hold evidence for the Big Bang.</li>
      <li>Dodge the red <b style="color:var(--danger)">time glitches</b>.</li>
+     <li>Pass every time gate, then put the whole history of the universe in order in the final challenge.</li>
    </ul>
-   <div class="row"><button class="go" id="bStart">Start the journey</button><button id="bGloss">Glossary</button><button id="bSrc">Sources</button></div>`);
-  on('bStart',()=>{S.score=0;S.evidence=new Set();hide();startEra(0);});
+   ${bestScore()?`<p class="src">Best score on this device: ${bestScore()}</p>`:''}
+   <div class="row"><button class="go" id="bStart">Start the journey</button><button id="bGloss">Glossary</button><button id="bSrc">Sources</button><button id="bSnd">${sndLabel()}</button></div>`);
+  on('bStart',()=>{audio();S.score=0;S.evidence=new Set();hide();startEra(0);});
   on('bGloss',()=>showGlossary(showTitle)); on('bSrc',()=>showSources(showTitle));
+  on('bSnd',()=>{toggleMute();document.getElementById('bSnd').textContent=sndLabel();});
 }
 function showIntro(){
   const e=ERAS[S.era];
@@ -465,8 +540,8 @@ function showIntro(){
 }
 function collect(o){
   const e=ERAS[S.era], f=e.facts[o.k], n=S.orbs.filter(x=>x.taken).length;
-  S.score+=o.ev?200:100; if(o.ev) S.evidence.add(S.era); updateHud();
-  S.mode='card'; S.pointer=null;
+  S.score+=o.ev?200:100; if(o.ev) S.evidence.add(S.era);
+  S.mode='card'; S.pointer=null; updateHud();
   const r=REFS[f.ref];
   show(`<p class="eyebrow">${o.ev?'Evidence for the Big Bang found!':`Fact ${n} of 3`} · ${e.name}</p>
    <h2>${f.title}</h2><p class="big">${f.text}</p>
@@ -481,29 +556,66 @@ function collect(o){
 function showQuiz(){
   const q=ERAS[S.era].quiz;
   show(`<p class="eyebrow">Time gate check · answer to travel on</p><h2>${q.q}</h2>
-   <div class="opts">${q.options.map((o,i)=>`<button data-i="${i}">${o}</button>`).join('')}</div>
+   <div class="opts">${shuffle(q.options.map((o,i)=>i)).map(i=>`<button data-i="${i}">${q.options[i]}</button>`).join('')}</div>
    <p class="fb" id="fb" aria-live="polite"></p><div class="row" id="next"></div>`);
   overlay.querySelectorAll('.opts button').forEach(b=>b.onclick=()=>{
     const i=+b.dataset.i, fb=document.getElementById('fb');
     if(i===q.answer){
       b.classList.add('right'); overlay.querySelectorAll('.opts button').forEach(x=>x.disabled=true);
-      const pts=S.firstTry?300:100; S.score+=pts; updateHud();
+      const pts=S.firstTry?300:100; S.score+=pts; updateHud(); SFX.right();
       fb.className='fb ok'; fb.textContent=`${q.explain} +${pts} points`;
       const last=S.era===ERAS.length-1;
-      document.getElementById('next').innerHTML=`<button class="go" id="bJump">${last?'Finish the journey':'Jump to the next era'}</button>`;
-      const j=document.getElementById('bJump'); j.focus(); j.onclick=()=>{hide();S.mode='warp';S.warp=0;};
+      document.getElementById('next').innerHTML=`<button class="go" id="bJump">${last?'Go to the final challenge':'Jump to the next era'}</button>`;
+      const j=document.getElementById('bJump'); j.focus(); j.onclick=()=>{hide();S.mode='warp';S.warp=0;S.fx=[];S.pops=[];SFX.warp();};
     } else {
-      b.classList.add('wrong'); b.disabled=true; S.firstTry=false;
+      b.classList.add('wrong'); b.disabled=true; S.firstTry=false; SFX.wrong();
       fb.className='fb no'; fb.textContent='Not quite. Think back to the facts you collected and try again.';
+    }
+  });
+}
+function bestScore(){try{return +localStorage.getItem('bbtm-best')||0;}catch(e){return 0;}}
+function showOrder(){
+  S.mode='order';updateHud();hint.hidden=true;
+  hudEra.textContent='Final challenge';hudWhen.textContent='Put history in order';
+  const idx=shuffle(ERAS.map((_,i)=>i)); let next=0, mistakes=0;
+  show(`<p class="eyebrow">Final challenge</p><h2>Put history in order</h2>
+   <p>Tap the events from the earliest to the latest. Fewer mistakes means more bonus points.</p>
+   <ol class="placed" id="placed"></ol>
+   <div class="opts" id="pool">${idx.map(i=>`<button data-i="${i}">${ERAS[i].name}</button>`).join('')}</div>
+   <p class="fb" id="fb" aria-live="polite"></p><div class="row" id="next"></div>`);
+  const placed=document.getElementById('placed'), fb=document.getElementById('fb');
+  overlay.querySelectorAll('#pool button').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.i;
+    if(i===next){
+      SFX.collect(); b.remove(); next++; fb.className='fb'; fb.textContent='';
+      placed.insertAdjacentHTML('beforeend',`<li><b>${ERAS[i].name}</b><span>${ERAS[i].when}</span></li>`);
+      if(next===ERAS.length){
+        const pts=Math.max(100,500-mistakes*100); S.score+=pts; updateHud(); SFX.win();
+        fb.className='fb ok'; fb.textContent=mistakes?`Timeline complete! +${pts} bonus points`:`Perfect timeline, no mistakes! +${pts} bonus points`;
+        document.getElementById('next').innerHTML='<button class="go" id="bFin">See my results</button>';
+        const f=document.getElementById('bFin'); f.focus(); f.onclick=showEnd;
+      } else { const nb=overlay.querySelector('#pool button'); if(nb) nb.focus({preventScroll:true}); }
+    } else {
+      SFX.wrong(); mistakes++; b.classList.remove('wrong'); void b.offsetWidth; b.classList.add('wrong');
+      fb.className='fb no'; fb.textContent = next ? `Not yet. What came straight after ${ERAS[next-1].name}?` : 'Not yet. Which of these happened first of all?';
     }
   });
 }
 function showEnd(){
   S.mode='end';updateHud();
+  const best=bestScore(), isBest=S.score>best;
+  if(isBest){try{localStorage.setItem('bbtm-best',String(S.score));}catch(e){}}
   const badges=Object.entries(EVIDENCE_NAMES).map(([i,n])=>`<span class="badge ${S.evidence.has(+i)?'':'miss'}">${n}</span>`).join('');
   show(`<p class="eyebrow">Journey complete</p><h1>${S.score} points</h1>
+   <p class="whenline">${isBest?'New best score!':`Best score on this device: ${best}`}</p>
    <p class="big">You travelled from the Big Bang, through inflation, the afterglow, the first stars and galaxies, to today's expanding universe and its icy far future.</p>
    <p class="eyebrow">Evidence for the Big Bang you found</p><div class="badges">${badges}</div>
+   <div class="recap">
+     <div class="term"><b>The first elements:</b> the amounts of hydrogen and helium in space match what the hot early universe should have made in its first few minutes.</div>
+     <div class="term"><b>Leftover light (CMB):</b> the faint microwave glow coming from every direction is the cooled-down light of the hot young universe.</div>
+     <div class="term"><b>Redshift:</b> light from distant galaxies is stretched to be redder, which shows the universe is expanding. Run it backwards and everything started together.</div>
+   </div>
+   <p class="src">Sources: (NASA, n.d.a; NASA JPL, n.d.)</p>
    <div class="row"><button class="go" id="bAgain">Play again</button><button id="bGloss">Glossary</button><button id="bSrc">Sources</button></div>`);
   on('bAgain',()=>{S.score=0;S.evidence=new Set();hide();startEra(0);});
   on('bGloss',()=>showGlossary(showEnd)); on('bSrc',()=>showSources(showEnd));
@@ -521,7 +633,23 @@ function showSources(back){
   on('bBack',back);
 }
 
+/* ---------------- Pause menu ---------------- */
+function showMenu(){
+  if(S.mode!=='play')return; S.mode='menu'; S.pointer=null; S.keys={};
+  show(`<p class="eyebrow">Paused · ${ERAS[S.era].name}</p><h2>Menu</h2>
+   <div class="opts"><button class="go" id="mRes">Resume</button><button id="mSnd">${sndLabel()}</button>
+   <button id="mGl">Glossary</button><button id="mSrc">Sources</button><button id="mQuit">Restart from the Big Bang</button></div>`);
+  on('mRes',resume);
+  on('mSnd',()=>{toggleMute();document.getElementById('mSnd').textContent=sndLabel();});
+  on('mGl',()=>showGlossary(reMenu)); on('mSrc',()=>showSources(reMenu));
+  on('mQuit',()=>{hide();S.score=0;S.evidence=new Set();startEra(0);});
+}
+function reMenu(){S.mode='play';showMenu();}
+function resume(){hide();S.mode='play';hint.hidden=false;setHintText();}
+document.getElementById('bMenu').onclick=()=>{ if(S.mode==='menu') resume(); else showMenu(); };
+
 /* ---------------- Input ---------------- */
+addEventListener('keydown',e=>{ if(e.key==='Escape'||e.key==='p'||e.key==='P'){ if(S.mode==='play') showMenu(); else if(S.mode==='menu') resume(); }});
 function ptr(e){const r=cv.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
 cv.addEventListener('pointerdown',e=>{if(S.mode!=='play')return;S.pointer=ptr(e);cv.setPointerCapture(e.pointerId);});
 cv.addEventListener('pointermove',e=>{if(S.pointer&&S.mode==='play')S.pointer=ptr(e);});
